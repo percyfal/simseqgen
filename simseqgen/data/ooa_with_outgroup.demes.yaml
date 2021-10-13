@@ -13,8 +13,8 @@ demes:
   - name: ape
     description: Ancestral population to GOR and orangutan
     epochs:
-      - {end_time: 8.6e6}
-  
+      - {end_time: 8.6e6, start_size: 7300}
+
   - name: ancestral
     description: Equilibrium/root population
     epochs:

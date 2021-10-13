@@ -7,17 +7,19 @@ from setuptools import setup, find_packages
 
 ROOT = os.path.dirname(os.path.realpath(__file__))
 
-package_name = 'simseqgen'
+package_name = "simseqgen"
 
-with open('README.rst') as readme_file:
+with open("README.rst") as readme_file:
     readme = readme_file.read()
 
-with open('HISTORY.rst') as history_file:
+with open("HISTORY.rst") as history_file:
     history = history_file.read()
 
-requirements = ['']
+requirements = [""]
 
-test_requirements = ['pytest>=3', ]
+test_requirements = [
+    "pytest>=3",
+]
 
 package_data = []
 
@@ -34,39 +36,41 @@ def package_path(path, filters=()):
                 if not filters or f.endswith(filters):
                     package_data.append(os.path.join(path, f))
 
+
 package_path(os.path.join(ROOT, package_name, "data"))
 
 setup(
     author="Per Unneberg",
-    author_email='per.unneberg@scilifelab.se',
-    python_requires='>=3.6',
+    author_email="per.unneberg@scilifelab.se",
+    python_requires=">=3.6",
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-        'Natural Language :: English',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
+        "Development Status :: 2 - Pre-Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Natural Language :: English",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
     description="Simulate genealogy and read sequences",
     entry_points={
-        'console_scripts': [
-            'simseqgen=simseqgen.cli:main',
+        "console_scripts": [
+            "simseqgen=simseqgen.cli:main",
         ],
     },
     install_requires=requirements,
     license="MIT license",
-    long_description=readme + '\n\n' + history,
+    long_description=readme + "\n\n" + history,
     include_package_data=True,
-    keywords='simseqgen',
-    name='simseqgen',
-    packages=find_packages(include=['simseqgen', 'simseqgen.*']),
-    package_data={'simseqgen/data': package_data},
-    test_suite='tests',
+    keywords="simseqgen",
+    name="simseqgen",
+    packages=find_packages(include=["simseqgen", "simseqgen.*"]),
+    package_data={"simseqgen/data": package_data},
+    test_suite="tests",
     tests_require=test_requirements,
-    url='https://github.com/percyfal/simseqgen',
-    version='0.1.0',
+    url="https://github.com/percyfal/simseqgen",
+    version="0.1.0",
     zip_safe=False,
+    use_scm_version={"write_to": "simseqgen/_version.py"},
 )

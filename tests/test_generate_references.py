@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from simseqgen.repo import demes
 import pytest
 
+
 @pytest.fixture
-def ooa(demography_dir):
+def ooa_obsolete(demography_dir):
     p = demography_dir / "ooa.yaml"
-    p.write("""
+    p.write(
+        """
 description:
   The Gutenkunst et al. (2009) OOA model, with added ape outgroups.
 time_units: years
 generation_time: 25
 
 demes:
+  -
   - name: X
     epochs:
       - end_time: 1000
@@ -30,9 +34,15 @@ migrations:
     dest: B
     rate: 1e-4
 
-""")
+"""
+    )
     return p
 
 
-def test_ooa(ooa):
+@pytest.fixture
+def ooa():
+    return demes["ooa_with_outgroups"]
+
+
+def test_ooa_with_outgroups(ooa):
     print(ooa)
