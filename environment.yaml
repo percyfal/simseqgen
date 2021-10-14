@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - art
+  - biopython
   - cyvcf2
   - gargammel
   - insilicoseq
