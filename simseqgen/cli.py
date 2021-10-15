@@ -9,7 +9,11 @@ def run_make_references(args):
     if args.outdir is None:
         args.outdir = pathlib.Path(os.curdir)
     simseqgen.generate_references.run(
-        args.ts, args.reference_chromosome, args.prefix, args.outdir, args.single_fasta
+        tsfile=args.ts,
+        reference_chromosome=args.reference_chromosome,
+        prefix=args.prefix,
+        outdir=args.outdir,
+        single=args.single_fasta,
     )
 
 
