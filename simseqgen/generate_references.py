@@ -5,6 +5,7 @@ import os
 import re
 import pathlib
 import collections
+import itertools
 import tempfile
 from random import choices
 import json
@@ -68,6 +69,7 @@ def tsk_id_metadata(ts):
             "index": ind,
             "name": indv_names[ind],
             "population": None,
+            "is_reference": False,
         }
         tsk_id[tsid] = md
     return tsk_id
@@ -89,25 +91,28 @@ def update_individual_metadata(ts):
             "popname": indv_to_pop[ind.id].metadata["name"],
             "popindex": indv_names[ind.id].split("_")[3],
             "population": indv_to_pop[ind.id],
-            "desc": (
+            "description": (
                 f"tskit individual tsk_{ind.id}, name {indv_names[ind.id]}, "
                 f"population {indv_to_pop[ind.id]}"
             ),
+            "is_reference": False,
         }
-
+        md["vcfheader"] = (
+            f"##<SAMPLE=<ID={md['tskit_id']},Name={md['name']},Index={md['id']},Population={md['popname']},"
+            f"Description=\"{md['population'].metadata['description']}\">"
+        )
         newind = ind.replace(metadata=md)
         individuals.append(newind)
     return individuals
 
 
-def get_reference_ind(ts, ref):
-    """Identify reference individual.
+def set_reference_ind(ts, ref):
+    """Identify reference individual index.
 
     Partition indv_names to reference_id and remaining ids
 
     Return:
       reference_ind_id (str): reference individual id formatted as tsk_{id}
-      indv_names (list): other individual tskit ids
     """
 
     def _make_popdict():
@@ -142,12 +147,9 @@ def get_reference_ind(ts, ref):
             raise
 
     reference_ind = popdict[refpop][refind]
-    return reference_ind
-
-
-# "indv_ids.pop(reference_ind)
-#    reference_ind_id = f"tsk_{reference_ind}"
-#    return reference_ind_id, [indv_names[i] for i in indv_ids]
+    individuals = update_individual_metadata(ts)
+    individuals[reference_ind].metadata["is_reference"] = True
+    return reference_ind, individuals
 
 
 def make_sequence(ts, index, reference):
@@ -168,23 +170,41 @@ def make_sequence(ts, index, reference):
     return record
 
 
-def write_variants(ts, vcf_refseq, vcf, vcfout):
+def write_variants(ts, vcf_tmp_fn, ref_ind, outdir, prefix):
     """Write variants to output vcf. If reference vcf is provided flip alleles where necessary"""
+
+    def _filter_reference(ind):
+        return ind.metadata["is_reference"]
+
+    vcf_ref = None
+    if ref_ind is not None:
+        ref_ind, individuals = set_reference_ind(ts, ref_ind)
+        vcf_ref = cyvcf2.VCF(
+            vcf_tmp_fn, samples=individuals[ref_ind].metadata["tskit_id"]
+        )
+
+    vcf_out = outdir / f"{prefix}.vcf.gz"
+    logger.info(f"Writing output vcf {vcf_out}")
+    samples = [
+        ind.metadata["tskit_id"]
+        for ind in itertools.filterfalse(_filter_reference, individuals)
+    ]
+    vcf_tmp = cyvcf2.VCF(vcf_tmp_fn, samples=samples)
     # Add header information to vcf
-    tsk_id = tsk_id_metadata(ts)
-    for sample in vcf.samples:
-        print(sample)
-    vcfwriter = cyvcf2.cyvcf2.Writer(str(vcfout), vcf, "wz")
-    if vcf_refseq is None:
-        vcfwriter.set_samples(vcf.samples)
-        for variant in vcf:
+    # Need to exclude reference from vcfout?
+    vcfwriter = cyvcf2.cyvcf2.Writer(str(vcf_out), vcf_tmp, "wz")
+    for ind in itertools.filterfalse(_filter_reference, individuals):
+        vcfwriter.add_to_header(ind.metadata["vcfheader"])
+    if vcf_ref is None:
+        vcfwriter.set_samples(vcf_tmp.samples)
+        for variant in vcf_tmp:
             vcfwriter.write_record(variant)
     else:
         # write function that does this
         # in cyvcf2: Pick one individual *haplotype* as reference: this
         # individual should have only 0's, so all calls at a site with a
         # derived allele should be flipped for all individuals.
-        for gt, variant in zip(vcf_refseq, vcf):
+        for gt, variant in zip(vcf_ref, vcf_tmp):
             ref = gt.genotypes[0][0]
             if ref == 1:
                 # Flip states for all other genotypes - or randomly?
@@ -221,23 +241,14 @@ def run(
     """
     ts = tskit.load(tsfile)
 
-    tmpvcf = tempfile.mkstemp(suffix=".vcf")[1]
-    logger.info(f"Writing temporary ts vcf {tmpvcf}")
-    with open(tmpvcf, "w") as fh:
+    vcf_tmp_fn = tempfile.mkstemp(suffix=".vcf")[1]
+    logger.info(f"Writing temporary ts vcf {vcf_tmp_fn}")
+    with open(vcf_tmp_fn, "w") as fh:
         ts.write_vcf(fh)
 
-    vcf_ref = None
-    if ref_ind is not None:
-        ref_ind = get_reference_ind(ts, ref_ind)
-        # ref_sample, indv_names = prepare_reference_ind(ts, ref_ind,
-        #                                                indv_names, indv_ids)
-        vcf_ref = cyvcf2.VCF(tmpvcf, samples=ref_ind)
+    write_variants(ts, vcf_tmp_fn, ref_ind, outdir, prefix)
 
-    vcfout = outdir / f"{prefix}.vcf.gz"
-    logger.info(f"Writing output vcf {vcfout}")
-    vcf = cyvcf2.VCF(tmpvcf, samples=tskit_individuals(ts))
-    write_variants(ts, vcf_ref, vcf, vcfout)
-
+    logger.info("Writing fasta sequences")
     # Make fasta sequences
     reference = None
     if refseq_fn is None:
