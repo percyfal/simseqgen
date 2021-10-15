@@ -134,20 +134,21 @@ def set_reference_individual(ts, ref):
     return individuals[index], individuals
 
 
-def make_sequence(ts, index, reference):
+def make_sequence(ts, individual, node, haplotype, reference):
     """Create DNA sequence with variants at sites"""
-    seqid = f"tsk_{list(ts.individuals())[index].id}"
+    seqid = f"tsk_{list(ts.individuals())[individual].id}-{haplotype}"
     indv_to_pop = map_individuals_to_population(ts)
     _, indv_names = make_indv_names(indv_to_pop)
-    for site, variant in zip(ts.sites(), list(ts.haplotypes())[index]):
+    for site, variant in zip(ts.sites(), list(ts.haplotypes())[node]):
         i = int(site.position)
         reference[i] = variant
     desc = (
-        f"tskit individual {index}, name {indv_names[index]}, "
-        f"population {indv_to_pop[index]}"
+        f"id:{individual}, node:{node}, name:{indv_names[individual]}, "
+        f"haplotype:{haplotype}, "
+        f"population:{indv_to_pop[individual]}"
     )
     record = SeqRecord(
-        Seq("".join(reference)), name=indv_names[index], id=seqid, description=desc
+        Seq("".join(reference)), name=indv_names[individual], id=seqid, description=desc
     )
     return record
 
@@ -239,8 +240,11 @@ def run(
         refout = outdir / f"{prefix}.fasta"
         fh = open(refout, "w")
     for i in range(ts.num_individuals):
-        rec = make_sequence(ts, i, reference)
-        if single:
-            SeqIO.write(rec, f"{rec.id}.fasta", "fasta")
-        else:
-            SeqIO.write(rec, fh, "fasta")
+        nodes = list(ts.individuals())[i].nodes
+        for node in nodes:
+            haplotype = node % len(nodes)
+            rec = make_sequence(ts, i, node, haplotype, reference)
+            if single:
+                SeqIO.write(rec, f"{rec.id}.fasta", "fasta")
+            else:
+                SeqIO.write(rec, fh, "fasta")
