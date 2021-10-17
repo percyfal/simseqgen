@@ -91,7 +91,7 @@ def make_sequence(ts, individual, node, haplotype, reference):
     """Create DNA sequence with variants at sites"""
     seqid = f"tsk_{individual.id}-{haplotype}"
     for site, variant in zip(ts.sites(), list(ts.haplotypes())[node]):
-        i = int(site.position)
+        i = int(site.position) - 1
         reference[i] = variant
     desc = (
         f"id:{individual.id}, node:{node}, name:{individual.metadata['name']}, "
